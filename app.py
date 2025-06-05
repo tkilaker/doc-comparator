@@ -51,17 +51,58 @@ def compare_texts(text1, text2):
     diffs = dmp.diff_main(text1, text2)
     dmp.diff_cleanupSemantic(diffs)
     
-    # Convert diffs to HTML format
+    # Convert diffs to HTML format with improved handling
     html_diff = []
     for op, data in diffs:
         if op == dmp_module.diff_match_patch.DIFF_INSERT:
-            html_diff.append(f'<span class="diff-insert">{data}</span>')
+            # Only show non-empty insertions or meaningful whitespace
+            if data.strip() or (data and not data.replace('\n', '').replace('\r', '')):
+                # Replace multiple consecutive newlines with single newlines
+                cleaned_data = clean_whitespace_for_display(data)
+                if cleaned_data:
+                    html_diff.append(f'<span class="diff-insert">{cleaned_data}</span>')
         elif op == dmp_module.diff_match_patch.DIFF_DELETE:
-            html_diff.append(f'<span class="diff-delete">{data}</span>')
+            # Only show non-empty deletions or meaningful whitespace
+            if data.strip() or (data and not data.replace('\n', '').replace('\r', '')):
+                # Replace multiple consecutive newlines with single newlines
+                cleaned_data = clean_whitespace_for_display(data)
+                if cleaned_data:
+                    html_diff.append(f'<span class="diff-delete">{cleaned_data}</span>')
         else:  # DIFF_EQUAL
-            html_diff.append(data)
+            # Clean up excessive whitespace in unchanged text too
+            cleaned_data = clean_whitespace_for_display(data)
+            if cleaned_data:
+                html_diff.append(cleaned_data)
     
     return ''.join(html_diff)
+
+def clean_whitespace_for_display(text):
+    """Clean up whitespace for better display"""
+    if not text:
+        return ''
+    
+    # Replace multiple consecutive newlines with maximum of 2 newlines
+    import re
+    
+    # Replace multiple spaces with single space, but preserve intentional formatting
+    text = re.sub(r' {3,}', '  ', text)
+    
+    # Replace multiple consecutive newlines with maximum of 2
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    
+    # Remove trailing whitespace from each line but preserve line breaks
+    lines = text.split('\n')
+    cleaned_lines = [line.rstrip() for line in lines]
+    text = '\n'.join(cleaned_lines)
+    
+    # Don't show text that's only whitespace unless it's a single meaningful break
+    if not text.strip():
+        # Only return single newline for paragraph breaks, ignore other whitespace-only content
+        if '\n' in text and len(text.strip('\n\r\t ')) == 0:
+            return '\n' if text.count('\n') > 0 else ''
+        return ''
+    
+    return text
 
 @app.route('/')
 def index():
