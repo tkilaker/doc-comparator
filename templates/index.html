@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document Comparator</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Document Comparator</h1>
+        <p>Compare the textual content of PDF and DOCX documents</p>
+      </header>
+
+      <main>
+        <div class="upload-section">
+          <form id="compareForm" enctype="multipart/form-data">
+            <div class="file-inputs">
+              <div class="file-input-group">
+                <label for="file1">First Document:</label>
+                <input
+                  type="file"
+                  id="file1"
+                  name="file1"
+                  accept=".pdf,.docx"
+                  required
+                />
+                <span class="file-info">PDF or DOCX format</span>
+              </div>
+
+              <div class="file-input-group">
+                <label for="file2">Second Document:</label>
+                <input
+                  type="file"
+                  id="file2"
+                  name="file2"
+                  accept=".pdf,.docx"
+                  required
+                />
+                <span class="file-info">PDF or DOCX format</span>
+              </div>
+            </div>
+
+            <button type="submit" id="compareBtn">Compare Documents</button>
+          </form>
+        </div>
+
+        <div id="loadingIndicator" class="loading hidden">
+          <div class="spinner"></div>
+          <p>Processing documents...</p>
+        </div>
+
+        <div id="errorMessage" class="error-message hidden"></div>
+
+        <div id="resultsSection" class="results-section hidden">
+          <div class="results-header">
+            <h2>Comparison Results</h2>
+            <div class="file-names">
+              <span id="fileName1" class="file-name"></span>
+              <span class="vs">vs</span>
+              <span id="fileName2" class="file-name"></span>
+            </div>
+          </div>
+
+          <div class="legend">
+            <h3>Legend:</h3>
+            <div class="legend-items">
+              <span class="legend-item">
+                <span class="legend-color diff-insert"></span>
+                Added text
+              </span>
+              <span class="legend-item">
+                <span class="legend-color diff-delete"></span>
+                Deleted text
+              </span>
+              <span class="legend-item">
+                <span class="legend-color unchanged"></span>
+                Unchanged text
+              </span>
+            </div>
+          </div>
+
+          <div id="diffResults" class="diff-results"></div>
+
+          <div class="actions">
+            <button id="newComparisonBtn" class="secondary-btn">
+              Compare New Documents
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        <p>
+          Upload your documents to see the differences highlighted for easy
+          manual transcription.
+        </p>
+      </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+  </body>
+</html>
