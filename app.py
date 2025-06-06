@@ -45,34 +45,72 @@ def extract_text_from_docx(file_path):
     except Exception as e:
         raise Exception(f"Error reading DOCX: {str(e)}")
 
+def normalize_text(text):
+    """Aggressively normalizes text by removing all leading/trailing whitespace and blank lines."""
+    import re
+    
+    # Remove soft hyphens and other invisible control characters
+    text = text.replace('\xad', '')  # Soft hyphen
+    text = text.replace('\u200b', '')  # Zero-width space
+    text = text.replace('\u200c', '')  # Zero-width non-joiner
+    text = text.replace('\u200d', '')  # Zero-width joiner
+    text = text.replace('\ufeff', '')  # Byte order mark
+    text = text.replace('\u2060', '')  # Word joiner
+    
+    # Replace non-breaking spaces and other unicode whitespace with regular spaces
+    text = text.replace('\xa0', ' ')  # Non-breaking space
+    text = text.replace('\u2009', ' ')  # Thin space
+    text = text.replace('\u200a', ' ')  # Hair space
+    text = text.replace('\u2007', ' ')  # Figure space
+    text = text.replace('\u2008', ' ')  # Punctuation space
+    text = text.replace('\u202f', ' ')  # Narrow no-break space
+    text = text.replace('\u205f', ' ')  # Medium mathematical space
+    text = text.replace('\u3000', ' ')  # Ideographic space
+    
+    # Use regex to replace any remaining unicode whitespace characters with regular spaces
+    text = re.sub(r'[\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]', ' ', text)
+    
+    # Remove any remaining control characters (except newlines and tabs)
+    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', text)
+    
+    # Split into lines and aggressively clean each line
+    lines = text.splitlines()
+    cleaned_lines = []
+    
+    for line in lines:
+        # Strip both leading and trailing whitespace
+        cleaned_line = line.strip()
+        # Only keep non-empty lines
+        if cleaned_line:
+            cleaned_lines.append(cleaned_line)
+    
+    # Join with single newlines - this creates a canonical format
+    return '\n'.join(cleaned_lines)
+
 def compare_texts(text1, text2):
     """Compare two texts and return differences using diff-match-patch"""
+    # Normalize both texts to ignore trailing whitespace and line ending differences
+    normalized_text1 = normalize_text(text1)
+    normalized_text2 = normalize_text(text2)
+    
     dmp = dmp_module.diff_match_patch()
-    diffs = dmp.diff_main(text1, text2)
+    diffs = dmp.diff_main(normalized_text1, normalized_text2)
     dmp.diff_cleanupSemantic(diffs)
     
-    # Convert diffs to HTML format with improved handling
+    # Convert diffs to HTML format with simplified logic
     html_diff = []
     for op, data in diffs:
         if op == dmp_module.diff_match_patch.DIFF_INSERT:
-            # Only show non-empty insertions or meaningful whitespace
-            if data.strip() or (data and not data.replace('\n', '').replace('\r', '')):
-                # Replace multiple consecutive newlines with single newlines
-                cleaned_data = clean_whitespace_for_display(data)
-                if cleaned_data:
-                    html_diff.append(f'<span class="diff-insert">{cleaned_data}</span>')
+            # Only show insertions that have actual content
+            if data.strip():
+                html_diff.append(f'<span class="diff-insert">{data}</span>')
         elif op == dmp_module.diff_match_patch.DIFF_DELETE:
-            # Only show non-empty deletions or meaningful whitespace
-            if data.strip() or (data and not data.replace('\n', '').replace('\r', '')):
-                # Replace multiple consecutive newlines with single newlines
-                cleaned_data = clean_whitespace_for_display(data)
-                if cleaned_data:
-                    html_diff.append(f'<span class="diff-delete">{cleaned_data}</span>')
+            # Only show deletions that have actual content
+            if data.strip():
+                html_diff.append(f'<span class="diff-delete">{data}</span>')
         else:  # DIFF_EQUAL
-            # Clean up excessive whitespace in unchanged text too
-            cleaned_data = clean_whitespace_for_display(data)
-            if cleaned_data:
-                html_diff.append(cleaned_data)
+            # Show unchanged text as-is
+            html_diff.append(data)
     
     return ''.join(html_diff)
 
@@ -81,26 +119,14 @@ def clean_whitespace_for_display(text):
     if not text:
         return ''
     
-    # Replace multiple consecutive newlines with maximum of 2 newlines
     import re
-    
-    # Replace multiple spaces with single space, but preserve intentional formatting
-    text = re.sub(r' {3,}', '  ', text)
     
     # Replace multiple consecutive newlines with maximum of 2
     text = re.sub(r'\n{3,}', '\n\n', text)
     
-    # Remove trailing whitespace from each line but preserve line breaks
-    lines = text.split('\n')
-    cleaned_lines = [line.rstrip() for line in lines]
-    text = '\n'.join(cleaned_lines)
-    
-    # Don't show text that's only whitespace unless it's a single meaningful break
+    # Don't show text that's only whitespace unless it's a meaningful line break
     if not text.strip():
-        # Only return single newline for paragraph breaks, ignore other whitespace-only content
-        if '\n' in text and len(text.strip('\n\r\t ')) == 0:
-            return '\n' if text.count('\n') > 0 else ''
-        return ''
+        return '\n' if '\n' in text else ''
     
     return text
 
