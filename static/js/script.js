@@ -10,6 +10,13 @@ document.addEventListener("DOMContentLoaded", function () {
   const newComparisonBtn = document.getElementById("newComparisonBtn")
   const file1Input = document.getElementById("file1")
   const file2Input = document.getElementById("file2")
+  const prevDiffBtn = document.getElementById("prevDiffBtn")
+  const nextDiffBtn = document.getElementById("nextDiffBtn")
+  const diffCounter = document.getElementById("diffCounter")
+
+  // Diff navigation state
+  let currentDiffIndex = 0
+  let diffElements = []
 
   // Hide all sections initially except upload
   hideElement(loadingIndicator)
@@ -48,6 +55,29 @@ document.addEventListener("DOMContentLoaded", function () {
   // New comparison button handler
   newComparisonBtn.addEventListener("click", function () {
     resetForm()
+  })
+
+  // Diff navigation event listeners
+  prevDiffBtn.addEventListener("click", function () {
+    navigateToPreviousDiff()
+  })
+
+  nextDiffBtn.addEventListener("click", function () {
+    navigateToNextDiff()
+  })
+
+  // Keyboard navigation
+  document.addEventListener("keydown", function (e) {
+    // Only enable keyboard navigation when results are visible
+    if (!resultsSection.classList.contains("hidden")) {
+      if (e.key === "ArrowDown" || e.key === "n") {
+        e.preventDefault()
+        navigateToNextDiff()
+      } else if (e.key === "ArrowUp" || e.key === "p") {
+        e.preventDefault()
+        navigateToPreviousDiff()
+      }
+    }
   })
 
   // File input change handlers for better UX
@@ -102,6 +132,9 @@ document.addEventListener("DOMContentLoaded", function () {
     fileName2.textContent = data.file2_name
     diffResults.innerHTML = data.diff_html
     showElement(resultsSection)
+
+    // Initialize diff navigation
+    initializeDiffNavigation()
 
     // Scroll to results
     resultsSection.scrollIntoView({ behavior: "smooth" })
@@ -167,11 +200,9 @@ document.addEventListener("DOMContentLoaded", function () {
     uploadSection.addEventListener(eventName, preventDefaults, false)
     document.body.addEventListener(eventName, preventDefaults, false)
   })
-
   ;["dragenter", "dragover"].forEach((eventName) => {
     uploadSection.addEventListener(eventName, highlight, false)
   })
-
   ;["dragleave", "drop"].forEach((eventName) => {
     uploadSection.addEventListener(eventName, unhighlight, false)
   })
@@ -215,6 +246,112 @@ document.addEventListener("DOMContentLoaded", function () {
 
       updateFileInputDisplay(file1Input)
       updateFileInputDisplay(file2Input)
+    }
+  }
+
+  // Diff navigation functions
+  function initializeDiffNavigation() {
+    // Find all diff elements (both insertions and deletions)
+    diffElements = diffResults.querySelectorAll(".diff-insert, .diff-delete")
+    currentDiffIndex = 0
+
+    // Update counter and button states
+    updateDiffCounter()
+    updateNavigationButtons()
+
+    // If there are diffs, highlight the first one
+    if (diffElements.length > 0) {
+      highlightCurrentDiff()
+    }
+  }
+
+  function navigateToNextDiff() {
+    if (diffElements.length === 0) return
+
+    // Remove current highlight
+    removeCurrentHighlight()
+
+    // Move to next diff
+    currentDiffIndex = (currentDiffIndex + 1) % diffElements.length
+
+    // Update UI and scroll to diff
+    highlightCurrentDiff()
+    scrollToCurrentDiff()
+    updateDiffCounter()
+    updateNavigationButtons()
+  }
+
+  function navigateToPreviousDiff() {
+    if (diffElements.length === 0) return
+
+    // Remove current highlight
+    removeCurrentHighlight()
+
+    // Move to previous diff
+    currentDiffIndex =
+      currentDiffIndex === 0 ? diffElements.length - 1 : currentDiffIndex - 1
+
+    // Update UI and scroll to diff
+    highlightCurrentDiff()
+    scrollToCurrentDiff()
+    updateDiffCounter()
+    updateNavigationButtons()
+  }
+
+  function highlightCurrentDiff() {
+    if (diffElements.length > 0 && diffElements[currentDiffIndex]) {
+      diffElements[currentDiffIndex].classList.add("current-diff")
+    }
+  }
+
+  function removeCurrentHighlight() {
+    diffElements.forEach((element) => {
+      element.classList.remove("current-diff")
+    })
+  }
+
+  function scrollToCurrentDiff() {
+    if (diffElements.length > 0 && diffElements[currentDiffIndex]) {
+      const element = diffElements[currentDiffIndex]
+      const container = diffResults
+
+      // Calculate the position to scroll to (center the element in the container)
+      const elementTop = element.offsetTop
+      const containerHeight = container.clientHeight
+      const elementHeight = element.offsetHeight
+
+      const scrollTop = elementTop - containerHeight / 2 + elementHeight / 2
+
+      container.scrollTo({
+        top: Math.max(0, scrollTop),
+        behavior: "smooth",
+      })
+    }
+  }
+
+  function updateDiffCounter() {
+    if (diffElements.length === 0) {
+      diffCounter.textContent = "0 / 0"
+    } else {
+      diffCounter.textContent = `${currentDiffIndex + 1} / ${
+        diffElements.length
+      }`
+    }
+  }
+
+  function updateNavigationButtons() {
+    const hasDiffs = diffElements.length > 0
+
+    prevDiffBtn.disabled = !hasDiffs
+    nextDiffBtn.disabled = !hasDiffs
+
+    // Update button text to show keyboard shortcuts
+    if (hasDiffs) {
+      prevDiffBtn.title = "Previous difference (↑ or P)"
+      nextDiffBtn.title = "Next difference (↓ or N)"
+    } else {
+      prevDiffBtn.title = "No differences found"
+      nextDiffBtn.title = "No differences found"
     }
   }
 })
